@@ -7,22 +7,35 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-#find_package(rclcpp REQUIRED)
-#find_package(std_msgs REQUIRED)
-#
-#add_executable(set_vel_gains_pro_node src/set_vel_gains_pro_node.cpp)
-#ament_target_dependencies(set_vel_gains_pro_node rclcpp std_msgs)
-#install(TARGETS
-#  set_vel_gains_pro_node
-#  DESTINATION lib/${PROJECT_NAME})
+find_package(rclcpp REQUIRED)
+find_package(odrive_can REQUIRED)
 
-#add_executable(set_vel_gains_s1_node src/set_vel_gains_s1_node.cpp)
-#ament_target_dependencies(set_vel_gains_s1_node rclcpp std_msgs)
-#install(TARGETS
-#  set_vel_gains_s1_node
-#  DESTINATION lib/${PROJECT_NAME})
-#install(TARGETS set_vel_gains_node
-#  DESTINATION lib/${PROJECT_NAME})
+include_directories(include)
+include_directories(../odrive_base/include)
+include_directories(../odrive_node/include)
+
+add_executable(odrive_can_gain_setter
+  ../odrive_base/src/epoll_event_loop.cpp
+  ../odrive_base/src/socket_can.cpp
+  src/odrive_can_gain_setter.cpp
+  src/main_odrive_can_gain_setter.cpp
+  include/odrive_can_gain_setter.hpp)
+
+ament_target_dependencies(odrive_can_gain_setter
+  rclcpp
+  odrive_can
+)
+
+target_compile_features(odrive_can_gain_setter PRIVATE cxx_std_20)
+
+install(
+  TARGETS odrive_can_gain_setter
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

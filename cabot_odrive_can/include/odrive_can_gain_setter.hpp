@@ -36,6 +36,10 @@ private:
     void request_state_callback();
     void ctrl_msg_callback();
     inline bool verify_length(const std::string&name, uint8_t expected, uint8_t length);
+
+    void set_vel_gains();
+    bool is_gain_correct();
+    float get_arbitrary_parameter(uint16_t endpoint_id);
     
     uint16_t node_id_;
     SocketCanIntf can_intf_ = SocketCanIntf();
@@ -55,11 +59,25 @@ private:
     ControlMessage ctrl_msg_ = ControlMessage();
     rclcpp::Subscription<ControlMessage>::SharedPtr subscriber_;
 
-    EpollEvent srv_evt_;
-    uint32_t axis_state_;
-    std::mutex axis_state_mutex_;
-    std::condition_variable fresh_heartbeat_;
-    rclcpp::Service<AxisState>::SharedPtr service_;
+    //EpollEvent srv_evt_;
+    //uint32_t axis_state_;
+    //std::mutex axis_state_mutex_;
+    //std::condition_variable fresh_heartbeat_;
+    //rclcpp::Service<AxisState>::SharedPtr service_;
+
+    float vel_gain_;
+    float vel_gain_actual_;
+    bool is_actual_vel_gain_received_ = false;
+    float vel_integrator_gain_;
+    float vel_integrator_gain_actual_;
+    bool is_actual_vel_integrator_gain_received_ = false;
+
+    std::mutex gain_param_mutex_;
+
+    std::shared_ptr<rclcpp::ParameterEventHandler> vel_gain_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> vel_gain_cb_handle_;
+    std::shared_ptr<rclcpp::ParameterEventHandler> vel_integrator_gain_subscriber_;
+    std::shared_ptr<rclcpp::ParameterCallbackHandle> vel_integrator_gain_cb_handle_;
 
 };
 

@@ -20,7 +20,7 @@
  * SOFTWARE.
  *******************************************************************************/
 
-#include "odrive_can_node.hpp"
+#include "odrive_can_gain_setter.hpp"
 #include "epoll_event_loop.hpp"
 #include "socket_can.hpp"
 #include <thread>
@@ -28,7 +28,7 @@
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
     EpollEventLoop event_loop;
-    auto can_node = std::make_shared<ODriveCanNode>("cabot_odrive_can");
+    auto can_node = std::make_shared<ODriveCanNode>("odrive_can_gain_setter");
 
     if (!can_node->init(&event_loop)) return -1;
 
