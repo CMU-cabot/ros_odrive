@@ -30,8 +30,10 @@ const double VEL_GAIN_DEFAULT            = 0.16;
 const double VEL_INTEGRATOR_GAIN_DEFAULT = 0.33;
 
 enum CmdId : uint32_t {
+  kHeartbeat   = 0x001,
   kRxSdo       = 0x004,
   kTxSdo       = 0x005,
+  kGetEncoderEstimates = 0x009,
   kSetVelGains = 0x01b,
 };
 
@@ -125,7 +127,6 @@ void ODriveCanNode::set_vel_gains() {
 }
 
 void ODriveCanNode::recv_callback(const can_frame& frame) {
-  RCLCPP_INFO(rclcpp::Node::get_logger(), "start callback");
 
   if(((frame.can_id >> 5) & 0x3F) != node_id_) return;
 
@@ -163,6 +164,9 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
         }
         break;
       }
+    case CmdId::kHeartbeat:
+    case CmdId::kGetEncoderEstimates:
+      break;
     default:
       RCLCPP_ERROR(rclcpp::Node::get_logger(),
           "Received unused message: ID = 0x%x", (frame.can_id & 0x1F));
@@ -202,12 +206,12 @@ float ODriveCanNode::get_arbitrary_parameter(uint16_t endpoint_id) {
   float val = 0;
   switch(endpoint_id) {
     case EndpointId::kVelGain:
-      //while(!is_actual_vel_gain_received_);
+      while(!is_actual_vel_gain_received_);
       val = vel_gain_actual_;
       is_actual_vel_gain_received_ = false;
       break;
     case EndpointId::kVelIntegratorGain:
-      //while(!is_actual_vel_integrator_gain_received_);
+      while(!is_actual_vel_integrator_gain_received_);
       val = vel_integrator_gain_actual_;
       is_actual_vel_integrator_gain_received_ = false;
       break;
