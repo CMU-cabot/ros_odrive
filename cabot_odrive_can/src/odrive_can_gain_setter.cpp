@@ -30,11 +30,11 @@ const double VEL_GAIN_DEFAULT            = 0.16;
 const double VEL_INTEGRATOR_GAIN_DEFAULT = 0.33;
 
 enum CmdId : uint32_t {
-  kHeartbeat   = 0x001,
-  kRxSdo       = 0x004,
-  kTxSdo       = 0x005,
+  kHeartbeat           = 0x001,
+  kRxSdo               = 0x004,
+  kTxSdo               = 0x005,
   kGetEncoderEstimates = 0x009,
-  kSetVelGains = 0x01b,
+  kSetVelGains         = 0x01b,
 };
 
 enum NodeId : uint32_t {
@@ -65,7 +65,7 @@ ODriveCanNode::ODriveCanNode(const std::string& node_name) : rclcpp::Node(node_n
     [this](const rclcpp::Parameter & p) {
       double vel_gain = p.as_double();
       this->vel_gain_ = vel_gain;
-      while(true) {
+      while(rclcpp::ok()) {
         this->set_vel_gains();
         if(this->is_gain_correct()) break;
       }
@@ -204,17 +204,46 @@ float ODriveCanNode::get_arbitrary_parameter(uint16_t endpoint_id) {
   can_intf_.send_can_frame(frame);
 
   float val = 0;
+  const int MAX_ATTEMPTS = 10;
   switch(endpoint_id) {
     case EndpointId::kVelGain:
-      while(!is_actual_vel_gain_received_);
-      val = vel_gain_actual_;
-      is_actual_vel_gain_received_ = false;
-      break;
+      {
+        bool read_success_flag = true;
+        for(int i=0;i<MAX_ATTEMPTS;i++) {
+          rclcpp::sleep_for(std::chrono::milliseconds(1));
+          //rclcpp::sleep_for(std::chrono::nanoseconds(500));
+          if(is_actual_vel_gain_received_) break;
+          if(i==MAX_ATTEMPTS-1) {
+            std::string interface = rclcpp::Node::get_parameter("interface").as_string();
+            RCLCPP_ERROR(rclcpp::Node::get_logger(),
+                "Trying to read vel_gain. Interface %s not reachable. %s cable might be cut.",
+                interface.c_str(), interface.c_str());
+            read_success_flag = false;
+          }
+        }
+        val = read_success_flag ? vel_gain_actual_ : NAN;
+        is_actual_vel_gain_received_ = false;
+        break;
+      }
     case EndpointId::kVelIntegratorGain:
-      while(!is_actual_vel_integrator_gain_received_);
-      val = vel_integrator_gain_actual_;
-      is_actual_vel_integrator_gain_received_ = false;
-      break;
+      {
+        bool read_success_flag = true;
+        for(int i=0;i<MAX_ATTEMPTS;i++) {
+          rclcpp::sleep_for(std::chrono::milliseconds(1));
+          //rclcpp::sleep_for(std::chrono::nanoseconds(500));
+          if(is_actual_vel_integrator_gain_received_) break;
+          if(i==MAX_ATTEMPTS-1) {
+            std::string interface = rclcpp::Node::get_parameter("interface").as_string();
+            RCLCPP_ERROR(rclcpp::Node::get_logger(),
+                "Trying to read vel_integrator_gain. Interface %s not reachable. %s cable might be cut.",
+                interface.c_str(), interface.c_str());
+            read_success_flag = false;
+          }
+        }
+        val = read_success_flag ? vel_integrator_gain_actual_ : NAN;
+        is_actual_vel_integrator_gain_received_ = false;
+        break;
+      }
     default:
       RCLCPP_ERROR(rclcpp::Node::get_logger(), "invalid endpoint_id %d", endpoint_id);
       break;
