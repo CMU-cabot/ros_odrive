@@ -33,7 +33,10 @@ enum CmdId : uint32_t {
   kHeartbeat           = 0x001,
   kRxSdo               = 0x004,
   kTxSdo               = 0x005,
+  kSetAxisState        = 0x007,
   kGetEncoderEstimates = 0x009,
+  kSetControllerMode   = 0x00b,
+  kSetInputVel         = 0x00d,
   kSetVelGains         = 0x01b,
 };
 
@@ -165,7 +168,10 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
         break;
       }
     case CmdId::kHeartbeat:
+    case CmdId::kSetAxisState:
     case CmdId::kGetEncoderEstimates:
+    case CmdId::kSetControllerMode:
+    case CmdId::kSetInputVel:
       break;
     default:
       RCLCPP_ERROR(rclcpp::Node::get_logger(),
