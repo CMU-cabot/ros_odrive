@@ -21,24 +21,52 @@
 #  SOFTWARE.
 # ******************************************************************************
 
-from launch import LaunchDescription
 from launch_ros.actions import Node
+from launch import LaunchDescription
 from launch import LaunchService
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import EnvironmentVariable
+from launch.substitutions import LaunchConfiguration
+from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import PythonExpression
+from ament_index_python.packages import get_package_share_directory
+
 
 def generate_launch_description():
+    pkg_dir = get_package_share_directory('cabot_odrive_can')
+    odrive_model = LaunchConfiguration('odrive_model')
+    odrive_firmware_version = LaunchConfiguration('odrive_firmware_version')
+    flat_endpoints_json_path = PathJoinSubstitution([
+        pkg_dir,
+        PythonExpression(['"json"']),
+        odrive_firmware_version,
+        PythonExpression(['"flat_endpoints_',odrive_model,'.json"'])])
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'odrive_model',
+            default_value=EnvironmentVariable('ODRIVE_MODEL'),
+            description='odrive model'
+            ),
+        DeclareLaunchArgument(
+            'odrive_firmware_version',
+            default_value=EnvironmentVariable('ODRIVE_FIRMWARE_VERSION'),
+            description='odrive firmware version'
+            ),
         Node(
             package='cabot_odrive_can',
             executable='odrive_can_gain_setter',
             name='odrive_can_gain_setter_left',
-            parameters=[{'node_id': 0}],
+            parameters=[{'node_id': 0,
+                         'json_file_path': flat_endpoints_json_path}],
             output='both'
             ),
         Node(
             package='cabot_odrive_can',
             executable='odrive_can_gain_setter',
             name='odrive_can_gain_setter_right',
-            parameters=[{'node_id': 1}],
+            parameters=[{'node_id': 1,
+                         'json_file_path': flat_endpoints_json_path}],
             output='both'
             )
         ])

@@ -15,6 +15,14 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
+struct EndpointId {
+  uint16_t kVelGain;
+  uint16_t kVelIntegratorGain;
+};
+
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -71,6 +79,7 @@ private:
     float vel_integrator_gain_;
     float vel_integrator_gain_actual_;
     bool is_actual_vel_integrator_gain_received_ = false;
+    EndpointId endpoint_id_ = {0,0};
 
     std::mutex gain_param_mutex_;
 
