@@ -7,6 +7,8 @@
 enum CmdId : uint32_t {
     kHeartbeat = 0x001,            // ControllerStatus  - publisher
     kGetError = 0x003,             // SystemStatus      - publisher
+    kRxSdo = 0x004,                // RxSdo
+    kTxSdo = 0x005,                // TxSdo
     kSetAxisState = 0x007,         // SetAxisState      - service
     kGetEncoderEstimates = 0x009,  // ControllerStatus  - publisher
     kSetControllerMode = 0x00b,    // ControlMessage    - subscriber
@@ -26,10 +28,26 @@ enum ControlMode : uint64_t {
     kPositionControl,
 };
 
+enum OpcodeId : uint8_t {
+    kRead  = 0x00,
+    kWrite = 0x01,
+};
+
 ODriveCanNode::ODriveCanNode(const std::string& node_name) : rclcpp::Node(node_name) {
     
     rclcpp::Node::declare_parameter<std::string>("interface", "can0");
     rclcpp::Node::declare_parameter<uint16_t>("node_id", 0);
+
+    // get endpoint id
+    rclcpp::Node::declare_parameter<std::string>("json_file_path", "PATH_TO_SHARE/PACKAGE/FIRMWARE_VERSION/flat_endpoints.json");
+    std::string json_file_path = rclcpp::Node::get_parameter("json_file_path").as_string();
+    std::ifstream fin(json_file_path);
+    if(!fin) {
+        RCLCPP_ERROR(rclcpp::Node::get_logger(), "json file %s does not exist", json_file_path.c_str());
+    } else {
+        this->endpoint_id_ = nlohmann::json::parse(fin);
+        RCLCPP_INFO(rclcpp::Node::get_logger(), "json file %s loaded successfully", json_file_path.c_str());
+    }
 
     rclcpp::QoS ctrl_stat_qos(rclcpp::KeepAll{});
     ctrl_publisher_ = rclcpp::Node::create_publisher<ControllerStatus>("controller_status", ctrl_stat_qos);
@@ -69,6 +87,13 @@ bool ODriveCanNode::init(EpollEventLoop* event_loop) {
     }
     RCLCPP_INFO(rclcpp::Node::get_logger(), "node_id: %d", node_id_);
     RCLCPP_INFO(rclcpp::Node::get_logger(), "interface: %s", interface.c_str());
+    
+    set_arbitrary_parameter<bool>(
+            endpoint_id_["endpoints"]["axis0.config.enable_watchdog"]["id"],
+            true);
+    set_arbitrary_parameter<float>(
+            endpoint_id_["endpoints"]["axis0.config.watchdog_timeout"]["id"],
+            5.0);
     return true;
 }
 
@@ -251,4 +276,21 @@ inline bool ODriveCanNode::verify_length(const std::string&name, uint8_t expecte
     RCLCPP_DEBUG(rclcpp::Node::get_logger(), "received %s", name.c_str());
     if (!valid) RCLCPP_WARN(rclcpp::Node::get_logger(), "Incorrect %s frame length: %d != %d", name.c_str(), length, expected);
     return valid;
+}
+
+template <typename T>
+void ODriveCanNode::set_arbitrary_parameter(uint16_t endpoint_id, T val) {
+    struct can_frame frame;
+    for(int i=0; i<CAN_MAX_DLEN; i++) frame.data[i] = 0;
+
+    frame.can_id = node_id_ << 5 | CmdId::kRxSdo;
+
+    uint8_t reserved = 0;
+    frame.can_dlc = 4 + sizeof(T);
+
+    write_le<uint8_t>(OpcodeId::kWrite, frame.data + 0);
+    write_le<uint16_t>(endpoint_id,     frame.data + 1);
+    write_le<uint8_t>(reserved,         frame.data + 3);
+    write_le<T>(val,                    frame.data + 4);
+    can_intf_.send_can_frame(frame);
 }

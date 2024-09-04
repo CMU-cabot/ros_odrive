@@ -15,6 +15,9 @@
 #include <linux/can.h>
 #include <linux/can/raw.h>
 
+#include <fstream>
+#include <nlohmann/json.hpp>
+
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -60,6 +63,11 @@ private:
     std::mutex axis_state_mutex_;
     std::condition_variable fresh_heartbeat_;
     rclcpp::Service<AxisState>::SharedPtr service_;
+
+    nlohmann::json endpoint_id_;
+
+    template <typename T>
+    void set_arbitrary_parameter(uint16_t endpoint_id, T val);
 
 };
 
