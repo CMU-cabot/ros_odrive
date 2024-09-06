@@ -133,7 +133,6 @@ void ODriveCanNode::set_vel_gains() {
   struct can_frame frame;
   frame.can_id = node_id_ << 5 | CmdId::kSetVelGains;
   {
-    std::unique_lock<std::mutex> guard(gain_param_mutex_);
     write_le<float>(vel_gain_,            frame.data + 0);
     write_le<float>(vel_integrator_gain_, frame.data + 4);
   }
@@ -156,20 +155,28 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
         float val          = read_le<float>(frame.data + 4);
 
         if(endpoint_id == endpoint_id_.kVelGain) {
-          vel_gain_actual_ = val;
-          is_actual_vel_gain_received_ = true;
-          RCLCPP_INFO(rclcpp::Node::get_logger(),
-              "recv_callback: node_id: %d, reserved0: %d, endpoint_id: %d,"
-              " reserved1: %d, vel_gain: %f",
-              node_id_, reserved0, endpoint_id, reserved1, vel_gain_actual_);
+          {
+            std::lock_guard<std::mutex> guard(vel_gain_actual_mutex_);
+            vel_gain_actual_ = val;
+            vel_gain_actual_ready_ = true;
+            RCLCPP_INFO(rclcpp::Node::get_logger(),
+                "recv_callback: node_id: %d, reserved0: %d, endpoint_id: %d,"
+                " reserved1: %d, vel_gain: %f",
+                node_id_, reserved0, endpoint_id, reserved1, vel_gain_actual_);
+          }
+          fresh_vel_gain_actual_.notify_one();
         }
         else if(endpoint_id == endpoint_id_.kVelIntegratorGain) {
-          vel_integrator_gain_actual_ = val;
-          is_actual_vel_integrator_gain_received_ = true;
-          RCLCPP_INFO(rclcpp::Node::get_logger(),
-              "recv_callback: node_id: %d, reserved0: %d, endpoint_id: %d,"
-              " reserved1: %d, vel_integrator_gain: %f",
-              node_id_, reserved0, endpoint_id, reserved1, vel_integrator_gain_actual_);
+          {
+            std::lock_guard<std::mutex> guard(vel_integrator_gain_actual_mutex_);
+            vel_integrator_gain_actual_ = val;
+            vel_integrator_gain_actual_ready_ = true;
+            RCLCPP_INFO(rclcpp::Node::get_logger(),
+                "recv_callback: node_id: %d, reserved0: %d, endpoint_id: %d,"
+                " reserved1: %d, vel_integrator_gain: %f",
+                node_id_, reserved0, endpoint_id, reserved1, vel_integrator_gain_actual_);
+          }
+          fresh_vel_integrator_gain_actual_.notify_one();
         } else {
           RCLCPP_ERROR(rclcpp::Node::get_logger(),
               "recv_callback: endpoint_id %d does not exist or callback "
@@ -206,44 +213,75 @@ bool ODriveCanNode::is_gain_correct() {
   return is_vel_gain_correct & is_vel_integrator_gain_correct;
 }
 
+std::string ODriveCanNode::get_parameter_name_from_number(int16_t endpoint_id) {
+  for(json::iterator it=flat_endpoints_json["endpoints"].begin(); it!=flat_endpoints_json["endpoints"].end(); ++it) {
+    if(it.value()["id"] == endpoint_id) {
+      return it.key();
+    }
+  }
+  return std::string();
+}
+
 float ODriveCanNode::get_arbitrary_parameter(uint16_t endpoint_id) {
+  std::string parameter_name = get_parameter_name_from_number(endpoint_id);
+  if(parameter_name.empty()) {
+    RCLCPP_ERROR(rclcpp::Node::get_logger(), "endpoint id %d does not exist", endpoint_id);
+    return NAN;
+  }
+
+  // send can frame
   struct can_frame frame;
   frame.can_id = node_id_ << 5 | CmdId::kRxSdo;
 
   uint8_t reserved = 0;
   frame.can_dlc = 4;
   {
-    std::unique_lock<std::mutex> guard(gain_param_mutex_);
     write_le<uint8_t>(OpcodeId::kRead, frame.data + 0);
     write_le<uint16_t>(endpoint_id,    frame.data + 1);
     write_le<uint8_t>(reserved,        frame.data + 3);
   }
   can_intf_.send_can_frame(frame);
 
+  // receive can frame
   float val = 0;
   const int MAX_ATTEMPTS = 10;
   if(endpoint_id == endpoint_id_.kVelGain) {
-    bool read_success_flag = true;
-    for(int i=0;i<MAX_ATTEMPTS;i++) {
-      rclcpp::sleep_for(std::chrono::milliseconds(1));
-      //rclcpp::sleep_for(std::chrono::nanoseconds(500));
-      if(is_actual_vel_gain_received_) break;
-      if(i==MAX_ATTEMPTS-1) {
-        std::string interface = rclcpp::Node::get_parameter("interface").as_string();
-        RCLCPP_ERROR(rclcpp::Node::get_logger(),
-            "Trying to read vel_gain. Interface %s not reachable. %s cable might be cut.",
-            interface.c_str(), interface.c_str());
-        read_success_flag = false;
-      }
+    std::unique_lock<std::mutex> guard(vel_gain_actual_mutex_);
+    bool cv_res = 
+      fresh_vel_gain_actual_.wait_for(
+          guard,
+          std::chrono::milliseconds(1),
+          [this]{return vel_gain_actual_ready_;});
+    if(cv_res == false) {
+      std::string interface = rclcpp::Node::get_parameter("interface").as_string();
+      RCLCPP_ERROR(rclcpp::Node::get_logger(),
+          "Trying to read vel_gain. Interface %s not reachable. %s cable might be cut.",
+          interface.c_str(), interface.c_str());
+      val = NAN;
+    } else {
+      val = vel_gain_actual_;
     }
-    val = read_success_flag ? vel_gain_actual_ : NAN;
     is_actual_vel_gain_received_ = false;
+
+    //bool read_success_flag = true;
+    //for(int i=0;i<MAX_ATTEMPTS;i++) {
+    //  rclcpp::sleep_for(std::chrono::milliseconds(1));
+    //  if(is_actual_vel_gain_received_) break;
+    //  if(i==MAX_ATTEMPTS-1) {
+    //    std::string interface = rclcpp::Node::get_parameter("interface").as_string();
+    //    RCLCPP_ERROR(rclcpp::Node::get_logger(),
+    //        "Trying to read vel_gain. Interface %s not reachable. %s cable might be cut.",
+    //        interface.c_str(), interface.c_str());
+    //    read_success_flag = false;
+    //  }
+    //}
+    //val = read_success_flag ? vel_gain_actual_ : NAN;
+    //is_actual_vel_gain_received_ = false;
   }
   else if(endpoint_id == endpoint_id_.kVelIntegratorGain) {
     bool read_success_flag = true;
     for(int i=0;i<MAX_ATTEMPTS;i++) {
       rclcpp::sleep_for(std::chrono::milliseconds(1));
-      //rclcpp::sleep_for(std::chrono::nanoseconds(500));
       if(is_actual_vel_integrator_gain_received_) break;
       if(i==MAX_ATTEMPTS-1) {
         std::string interface = rclcpp::Node::get_parameter("interface").as_string();

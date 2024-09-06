@@ -18,11 +18,6 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-struct EndpointId {
-  uint16_t kVelGain;
-  uint16_t kVelIntegratorGain;
-};
-
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -48,6 +43,7 @@ private:
     void set_vel_gains();
     bool is_gain_correct();
     float get_arbitrary_parameter(uint16_t endpoint_id);
+    std::string ODriveCanNode::get_parameter_name_from_number(int16_t endpoint_id);
     
     uint16_t node_id_;
     SocketCanIntf can_intf_ = SocketCanIntf();
@@ -75,13 +71,15 @@ private:
 
     float vel_gain_;
     float vel_gain_actual_;
-    bool is_actual_vel_gain_received_ = false;
+    std::mutex vel_gain_actual_mutex_;
+    std::condition_variable fresh_vel_gain_actual_;
+    bool vel_gain_actual_ready_ = false;
+
     float vel_integrator_gain_;
     float vel_integrator_gain_actual_;
-    bool is_actual_vel_integrator_gain_received_ = false;
-    EndpointId endpoint_id_ = {0,0};
-
-    std::mutex gain_param_mutex_;
+    std::mutex vel_integrator_gain_actual_mutex_;
+    std::condition_variable fresh_vel_integrator_gain_actual_;
+    bool vel_integrator_gain_actual_ready_ = false;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> vel_gain_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> vel_gain_cb_handle_;
