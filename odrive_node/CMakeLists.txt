@@ -22,8 +22,6 @@ include_directories(include)
 include_directories(../odrive_base/include)
 
 add_executable(odrive_can_node 
-  ../odrive_base/src/epoll_event_loop.cpp
-  ../odrive_base/src/socket_can.cpp
   src/odrive_can_node.cpp
   src/main.cpp
   include/odrive_can_node.hpp)
@@ -33,6 +31,16 @@ ament_target_dependencies(odrive_can_node
 )
 
 target_compile_features(odrive_can_node PRIVATE cxx_std_20)
+
+add_library(odrive_base SHARED
+  ../odrive_base/src/epoll_event_loop.cpp
+  ../odrive_base/src/socket_can.cpp
+)
+target_include_directories(odrive_base
+  PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../odrive_base/include>"
+    "$<INSTALL_INTERFACE:include>"
+)
 
 install(
   TARGETS odrive_can_node
@@ -46,6 +54,28 @@ install(DIRECTORY launch
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
-target_link_libraries(odrive_can_node "${cpp_typesupport_target}")
+target_link_libraries(odrive_can_node "${cpp_typesupport_target}" odrive_base)
+
+install(TARGETS
+  odrive_base
+  EXPORT export_${PROJECT_NAME}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY ../odrive_base/include/
+  DESTINATION include/odrive_base
+)
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+
+ament_export_include_directories(
+  include/odrive_base
+)
+ament_export_libraries(odrive_base)
+ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 ament_package()
