@@ -177,11 +177,9 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
             if(params_.get_type(endpoint_id) == typeid(bool).name()) {
                 bool val;
                 memcpy(&val, &raw_val, sizeof(bool));
-                //params_.set_fresh(endpoint_id, val);
-                //    RCLCPP_INFO(rclcpp::Node::get_logger(),
-                //        "recv_callback: node_id: %d, reserved0: %d, endpoint_id: %d,"
-                //        " reserved1: %d, vel_gain: %f",
-                //        node_id_, reserved0, endpoint_id, reserved1, vel_gain_actual_);
+                params_.set_fresh(endpoint_id, val);
+                RCLCPP_INFO(rclcpp::Node::get_logger(), "recv_callback: node_id: %d, endpoint_id: %d,"
+                        " type: bool, value: %d", node_id_, endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint8_t).name()) {
                 uint8_t val;
                 memcpy(&val, &raw_val, sizeof(uint8_t));
