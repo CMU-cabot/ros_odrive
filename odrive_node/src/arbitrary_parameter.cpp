@@ -145,7 +145,7 @@ void ArbitraryParameter::get_fresh(uint16_t id, float& output_val) {
   std::mutex& output_val_mutex = get_mutex(id);
   std::unique_lock<std::mutex> guard(output_val_mutex);
   bool& resource_ready = get_flag(id);
-  if(get_cv(id).wait_for(guard, std::chrono::milliseconds(100), [&resource_ready]{return resource_ready;})) {
+  if(get_cv(id).wait_for(guard, std::chrono::milliseconds(10), [&resource_ready]{return resource_ready;})) {
     // parameter is updated in time
     output_val = float_parameters.find(id)->second;
     resource_ready = false;
