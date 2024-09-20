@@ -183,36 +183,44 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
             } else if(params_.get_type(endpoint_id) == typeid(uint8_t).name()) {
                 uint8_t val;
                 memcpy(&val, &raw_val, sizeof(uint8_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint8_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint16_t).name()) {
                 uint16_t val;
                 memcpy(&val, &raw_val, sizeof(uint16_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint16_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint32_t).name()) {
                 uint32_t val;
                 memcpy(&val, &raw_val, sizeof(uint32_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint32_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint64_t).name()) {
                 uint64_t val;
                 memcpy(&val, &raw_val, sizeof(uint64_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint64_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(int32_t).name()) {
                 int32_t val;
                 memcpy(&val, &raw_val, sizeof(int32_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: int32_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(int64_t).name()) {
                 int64_t val;
                 memcpy(&val, &raw_val, sizeof(int64_t));
+                RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: int64_t parameter is not currently supported");
                 //params_.set_fresh(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(float).name()) {
                 float val;
                 memcpy(&val, &raw_val, sizeof(float));
                 params_.set_fresh(endpoint_id, val);
+                RCLCPP_INFO(rclcpp::Node::get_logger(), "recv_callback: node_id: %d, endpoint_id: %d,"
+                        " type: float, value: %f", node_id_, endpoint_id, val);
             } else {
                 // type does not exist
-                //  RCLCPP_ERROR(rclcpp::Node::get_logger(),
-                //      "recv_callback: endpoint_id %d does not exist or callback "
-                //      "process of the endpoint_id is not implemented", endpoint_id);
+                RCLCPP_ERROR(rclcpp::Node::get_logger(),
+                        "recv_callback: endpoint_id %d does not exist or callback "
+                        "process of the endpoint_id is not implemented", endpoint_id);
             }
             break;
         }
