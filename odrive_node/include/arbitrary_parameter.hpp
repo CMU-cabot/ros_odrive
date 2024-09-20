@@ -18,8 +18,8 @@ public:
     bool contains(uint16_t id);
     void set_fresh(uint16_t id, float input_val);
     void get_fresh(uint16_t id, float& output_val);
-    std::string get_type(uint16_t id);
-    std::string get_type_demangled(uint16_t id);
+    std::string get_type(uint16_t id); // obtain mangled type name
+    std::string get_type_demangled(uint16_t id); // obtain demangled type name
     uint16_t get_id(const std::string& name);
 private:
     bool contains_float(uint16_t id);
