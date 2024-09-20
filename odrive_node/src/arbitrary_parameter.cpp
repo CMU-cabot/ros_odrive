@@ -82,6 +82,10 @@ bool ArbitraryParameter::contains_float(uint16_t id) {
   return float_parameters.find(id) != float_parameters.end();
 }
 
+bool ArbitraryParameter::contains_bool(uint16_t id) {
+  return bool_parameters.find(id) != bool_parameters.end();
+}
+
 bool ArbitraryParameter::contains(const std::string& name) {
   return names_.right.find(name) != names_.right.end();
 }
@@ -132,6 +136,28 @@ void ArbitraryParameter::set_fresh(uint16_t id, float input_val) {
   return;
 }
 
+void ArbitraryParameter::set_fresh(uint16_t id, bool input_val) {
+  std::string name = get_name(id);
+  if(!contains(name)) {
+    std::cerr << "endpoint name " << name << " does not exist" << std::endl;
+    return;
+  }
+  if(!contains_bool(id)) {
+    std::cerr << "endpoint name " << name << " is not included in bool type parameters" << std::endl;
+    return;
+  }
+  {
+    std::mutex& input_val_mutex = get_mutex(id);
+    std::unique_lock<std::mutex> guard(input_val_mutex);
+    bool& resource_ready = get_flag(id);
+    bool& target_parameter = bool_parameters.at(id);
+    target_parameter = input_val;
+    resource_ready = true;
+  }
+  get_cv(id).notify_all();
+  return;
+}
+
 void ArbitraryParameter::get_fresh(uint16_t id, float& output_val) {
   std::string name = get_name(id);
   if(!contains(name)) {
@@ -148,6 +174,30 @@ void ArbitraryParameter::get_fresh(uint16_t id, float& output_val) {
   if(get_cv(id).wait_for(guard, std::chrono::milliseconds(10), [&resource_ready]{return resource_ready;})) {
     // parameter is updated in time
     output_val = float_parameters.find(id)->second;
+    resource_ready = false;
+  } else {
+    // parameter is not updated
+    std::cerr << "sync thread timeout: cannot receive " << name << " in time" << std::endl;
+  }
+  return;
+}
+
+void ArbitraryParameter::get_fresh(uint16_t id, bool& output_val) {
+  std::string name = get_name(id);
+  if(!contains(name)) {
+    std::cerr << "endpoint name " << name << " does not exist" << std::endl;
+    return;
+  }
+  if(!contains_bool(id)) {
+    std::cerr << "endpoint name " << name << " is not included in bool type parameters" << std::endl;
+    return;
+  }
+  std::mutex& output_val_mutex = get_mutex(id);
+  std::unique_lock<std::mutex> guard(output_val_mutex);
+  bool& resource_ready = get_flag(id);
+  if(get_cv(id).wait_for(guard, std::chrono::milliseconds(10), [&resource_ready]{return resource_ready;})) {
+    // parameter is updated in time
+    output_val = bool_parameters.find(id)->second;
     resource_ready = false;
   } else {
     // parameter is not updated
