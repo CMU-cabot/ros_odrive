@@ -14,9 +14,10 @@
 #include <algorithm>
 #include <linux/can.h>
 #include <linux/can/raw.h>
+#include "arbitrary_parameter.hpp"
 
-#include <fstream>
-#include <nlohmann/json.hpp>
+//#include <fstream>
+//#include <nlohmann/json.hpp>
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -42,8 +43,12 @@ private:
 
     void set_vel_gains();
     bool is_gain_correct();
-    float get_arbitrary_parameter(uint16_t endpoint_id);
-    std::string ODriveCanNode::get_parameter_name_from_number(int16_t endpoint_id);
+
+    template <typename T>
+      void get_arbitrary_parameter(uint16_t endpoint_id, T &output_val);
+    template <typename T>
+      void set_arbitrary_parameter(uint16_t endpoint_id, T val);
+    //std::string ODriveCanNode::get_parameter_name_from_number(int16_t endpoint_id);
     
     uint16_t node_id_;
     SocketCanIntf can_intf_ = SocketCanIntf();
@@ -70,21 +75,23 @@ private:
     //rclcpp::Service<AxisState>::SharedPtr service_;
 
     float vel_gain_;
-    float vel_gain_actual_;
-    std::mutex vel_gain_actual_mutex_;
-    std::condition_variable fresh_vel_gain_actual_;
-    bool vel_gain_actual_ready_ = false;
+    //float vel_gain_actual_;
+    //std::mutex vel_gain_actual_mutex_;
+    //std::condition_variable fresh_vel_gain_actual_;
+    //bool vel_gain_actual_ready_ = false;
 
     float vel_integrator_gain_;
-    float vel_integrator_gain_actual_;
-    std::mutex vel_integrator_gain_actual_mutex_;
-    std::condition_variable fresh_vel_integrator_gain_actual_;
-    bool vel_integrator_gain_actual_ready_ = false;
+    //float vel_integrator_gain_actual_;
+    //std::mutex vel_integrator_gain_actual_mutex_;
+    //std::condition_variable fresh_vel_integrator_gain_actual_;
+    //bool vel_integrator_gain_actual_ready_ = false;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> vel_gain_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> vel_gain_cb_handle_;
     std::shared_ptr<rclcpp::ParameterEventHandler> vel_integrator_gain_subscriber_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> vel_integrator_gain_cb_handle_;
+
+    ArbitraryParameter params_;
 
 };
 
