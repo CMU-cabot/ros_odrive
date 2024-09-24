@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <any>
 #include <nlohmann/json.hpp>
 #include <boost/bimap.hpp>
 #include <mutex>
@@ -16,10 +17,13 @@ public:
     void init(const std::string& json_file_path);
     bool contains(const std::string& name);
     bool contains(uint16_t id);
-    void set_fresh(uint16_t id, float input_val);
-    void set_fresh(uint16_t id, bool input_val);
-    void get_fresh(uint16_t id, float& output_val);
-    void get_fresh(uint16_t id, bool& output_val);
+
+    template<typename T>
+    void set_fresh(uint16_t id, T input_val);
+
+    template<typename T>
+    void get_fresh(uint16_t id, T& output_val);
+
     std::string get_type(uint16_t id); // obtain mangled type name
     std::string get_type_demangled(uint16_t id); // obtain demangled type name
     uint16_t get_id(const std::string& name);
@@ -31,14 +35,7 @@ private:
     std::condition_variable& get_cv(uint16_t id);
     bool& get_flag(uint16_t id);
 
-    std::map<uint16_t, bool>     bool_parameters;
-    std::map<uint16_t, uint16_t> uint16_parameters;
-    std::map<uint16_t, uint32_t> uint32_parameters;
-    std::map<uint16_t, uint64_t> uint64_parameters;
-    std::map<uint16_t, int8_t>   uint8_parameters;
-    std::map<uint16_t, int32_t>  int32_parameters;
-    std::map<uint16_t, int64_t>  int64_parameters;
-    std::map<uint16_t, float>    float_parameters;
+    std::map<uint16_t, std::any> parameters;
     //std::map<uint16_t, uint16_t> endpoint_ref_parameters;
     //std::map<uint16_t, uint16_t> function_parameters;
     //std::vector<uint16_t> ids_;
@@ -51,4 +48,53 @@ private:
     std::map<uint16_t, bool> flags_;
 };
 
+template<typename T>
+void ArbitraryParameter::set_fresh(uint16_t id, T input_val) {
+    std::string name = get_name(id);
+    if(!contains(name)) {
+        std::cerr << "endpoint name " << name << " does not exist" << std::endl;
+        return;
+    }
+    if(get_type(id) != typeid(T).name()) {
+        std::cerr << "endpoint name " << name << " is a " << get_type_demangled(id);
+	std::cerr << " type parameter, not " << typeid(T).name() << std::endl;
+        return;
+    }
+    {
+        std::mutex& input_val_mutex = get_mutex(id);
+        std::unique_lock<std::mutex> guard(input_val_mutex);
+        bool& resource_ready = get_flag(id);
+	std::any& target_parameter = parameters.at(id);
+        target_parameter = input_val;
+        resource_ready = true;
+    }
+    get_cv(id).notify_all();
+    return;
+}
+
+template<typename T>
+void ArbitraryParameter::get_fresh(uint16_t id, T& output_val) {
+    std::string name = get_name(id);
+    if(!contains(name)) {
+        std::cerr << "endpoint name " << name << " does not exist" << std::endl;
+        return;
+    }
+    if(get_type(id) != typeid(T).name()) {
+        std::cerr << "endpoint name " << name << " is a " << get_type_demangled(id);
+	std::cerr << " type parameter, not " << typeid(T).name() << std::endl;
+        return;
+    }
+    std::mutex& output_val_mutex = get_mutex(id);
+    std::unique_lock<std::mutex> guard(output_val_mutex);
+    bool& resource_ready = get_flag(id);
+    if(get_cv(id).wait_for(guard, std::chrono::milliseconds(10), [&resource_ready]{return resource_ready;})) {
+        // parameter is updated in time
+        output_val = std::any_cast<T>(parameters.find(id)->second);
+        resource_ready = false;
+    } else {
+        // parameter is not updated
+        std::cerr << "sync thread timeout: cannot receive " << name << " in time" << std::endl;
+    }
+    return;
+}
 #endif // ARBITRARY_PARAMETER_HPP

@@ -177,43 +177,43 @@ void ODriveCanNode::recv_callback(const can_frame& frame) {
             if(params_.get_type(endpoint_id) == typeid(bool).name()) {
                 bool val;
                 memcpy(&val, &raw_val, sizeof(bool));
-                params_.set_fresh(endpoint_id, val);
+                params_.set_fresh<bool>(endpoint_id, val);
                 RCLCPP_INFO(rclcpp::Node::get_logger(), "recv_callback: node_id: %d, endpoint_id: %d,"
                         " type: bool, value: %d", node_id_, endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint8_t).name()) {
                 uint8_t val;
                 memcpy(&val, &raw_val, sizeof(uint8_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint8_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<uint8_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint16_t).name()) {
                 uint16_t val;
                 memcpy(&val, &raw_val, sizeof(uint16_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint16_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<uint16_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint32_t).name()) {
                 uint32_t val;
                 memcpy(&val, &raw_val, sizeof(uint32_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint32_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<uint32_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(uint64_t).name()) {
                 uint64_t val;
                 memcpy(&val, &raw_val, sizeof(uint64_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: uint64_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<uint64_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(int32_t).name()) {
                 int32_t val;
                 memcpy(&val, &raw_val, sizeof(int32_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: int32_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<int32_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(int64_t).name()) {
                 int64_t val;
                 memcpy(&val, &raw_val, sizeof(int64_t));
                 RCLCPP_ERROR(rclcpp::Node::get_logger(), "recv_callback: int64_t parameter is not currently supported");
-                //params_.set_fresh(endpoint_id, val);
+                //params_.set_fresh<int64_t>(endpoint_id, val);
             } else if(params_.get_type(endpoint_id) == typeid(float).name()) {
                 float val;
                 memcpy(&val, &raw_val, sizeof(float));
-                params_.set_fresh(endpoint_id, val);
+                params_.set_fresh<float>(endpoint_id, val);
                 RCLCPP_INFO(rclcpp::Node::get_logger(), "recv_callback: node_id: %d, endpoint_id: %d,"
                         " type: float, value: %f", node_id_, endpoint_id, val);
             } else {
@@ -440,7 +440,7 @@ void ODriveCanNode::get_arbitrary_parameter(uint16_t endpoint_id, T &output_val)
     can_intf_.send_can_frame(frame);
 
     // receive can frame
-    params_.get_fresh(endpoint_id, output_val);
+    params_.get_fresh<T>(endpoint_id, output_val);
     return;
 }
 
