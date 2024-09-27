@@ -32,7 +32,7 @@ ODriveCanNode::ODriveCanNode(const std::string& node_name) : rclcpp::Node(node_n
     
     rclcpp::Node::declare_parameter<std::string>("interface", "can0");
     rclcpp::Node::declare_parameter<uint16_t>("node_id", 0);
-    rclcpp::Node::declare_parameter<bool>("keep_odrive_state", true);
+    rclcpp::Node::declare_parameter<bool>("axis_idle_on_shutdown", false);
 
     rclcpp::QoS ctrl_stat_qos(rclcpp::KeepAll{});
     ctrl_publisher_ = rclcpp::Node::create_publisher<ControllerStatus>("controller_status", ctrl_stat_qos);
@@ -51,7 +51,7 @@ ODriveCanNode::ODriveCanNode(const std::string& node_name) : rclcpp::Node(node_n
 }
 
 void ODriveCanNode::deinit() {
-    if(!keep_odrive_state_) {
+    if(!axis_idle_on_shutdown_) {
         struct can_frame frame;
         frame.can_id = node_id_ << 5 | CmdId::kSetAxisState;
         {
@@ -70,7 +70,7 @@ void ODriveCanNode::deinit() {
 bool ODriveCanNode::init(EpollEventLoop* event_loop) {
 
     node_id_ = rclcpp::Node::get_parameter("node_id").as_int();
-    keep_odrive_state_ = rclcpp::Node::get_parameter("keep_odrive_state").as_bool();
+    axis_idle_on_shutdown_ = rclcpp::Node::get_parameter("axis_idle_on_shutdown").as_bool();
     std::string interface = rclcpp::Node::get_parameter("interface").as_string();
 
     if (!can_intf_.init(interface, event_loop, std::bind(&ODriveCanNode::recv_callback, this, _1))) {
