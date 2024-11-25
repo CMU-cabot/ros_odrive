@@ -147,6 +147,10 @@ bool ODriveCanNode::init(EpollEventLoop* event_loop) {
     }
     RCLCPP_INFO(rclcpp::Node::get_logger(), "node_id: %d", node_id_);
     RCLCPP_INFO(rclcpp::Node::get_logger(), "interface: %s", interface.c_str());
+
+    set_arbitrary_parameter<bool>(params_.get_id("axis0.config.enable_watchdog"), true);
+    set_arbitrary_parameter<float>(params_.get_id("axis0.config.watchdog_timeout"), 1.0);
+
     return true;
 }
 
